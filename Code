@@ -1,0 +1,230 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+using System.Windows.Threading;
+
+namespace test
+{
+    /// <summary>
+    /// Логика взаимодействия для MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private const int SavokSize = 20;
+
+        private readonly SolidColorBrush _savokColor = Brushes.Red;
+        private enum Direction
+        {
+            Left, Right, Top, Bottom
+        }
+
+        private Direction _direction = Direction.Left;
+        private const int TimerInterval = 200;
+        private DispatcherTimer _timer;
+        private Rectangle _savokHead;
+        private Point _foodPositsion;
+        private static readonly Random randomPositionFood = new Random();
+        private List<Rectangle> _savok = new List<Rectangle>();
+        private int _score = 0;
+        public MainWindow()
+        {
+            InitializeComponent();
+        }
+        private void InitialGame()   {
+
+ 
+            _savokHead = CreateSavokSegment(new Point(5, 5));
+            _savok.Add(_savokHead);
+            GameSavok.Children.Add(_savokHead);
+
+            PlaceFood();
+            _timer = new DispatcherTimer();
+            _timer.Tick += Timer_Tick;
+            _timer.Interval = TimeSpan.FromMilliseconds(TimerInterval);
+            _timer.Start();
+        }
+        private void GameSavok_Loaded(object sender, RoutedEventArgs e)
+        {
+            _savokHead = CreateSavokSegment(new Point(5, 5));
+            _savok.Add(_savokHead);
+            GameSavok.Children.Add(_savokHead);
+
+            PlaceFood();
+            _timer = new DispatcherTimer();
+            _timer.Tick += Timer_Tick;
+            _timer.Interval = TimeSpan.FromMilliseconds(TimerInterval);
+            _timer.Start();
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            Point newHeadPosition = CalculeteNewHeadPosition();
+            if (newHeadPosition == _foodPositsion)
+            {
+                EatFood();
+                PlaceFood();
+            }
+            if (newHeadPosition.X < 0 || newHeadPosition.Y < 0
+                || newHeadPosition.X >= GameSavok.ActualWidth / SavokSize
+                || newHeadPosition.Y >= GameSavok.ActualHeight / SavokSize)
+            {
+                GameOver();
+                return;
+            }
+
+            if(_savok.Count >= 4)
+            
+                for(int i = 0; i < _savok.Count; i++)
+                {
+                    Point currentPos = new Point(Canvas.GetLeft(_savok[i]), Canvas.GetTop(_savok[i]));
+
+                    for(int j = i +1; j < _savok.Count; j++)
+                    {
+                        Point nextPos = new Point(Canvas.GetLeft(_savok[j]), Canvas.GetTop(_savok[j]));
+
+                        if (currentPos == nextPos)
+                        {
+                            GameOver();
+                            return;
+                        }
+                    }
+                }
+
+            for (int i = _savok.Count -1; i > 0; i--)
+            {
+                Canvas.SetLeft(_savok[i], Canvas.GetLeft(_savok[i -1]));
+                Canvas.SetTop(_savok[i], Canvas.GetTop(_savok[i - 1]));
+            }
+
+            Canvas.SetLeft(_savokHead, newHeadPosition.X * SavokSize);
+            Canvas.SetTop(_savokHead, newHeadPosition.Y * SavokSize);
+        }
+        private void GameOver()
+        {
+            _timer.Stop();
+            RestartButton.Visibility = Visibility.Visible;
+        }
+        private void EatFood()
+        {
+            _score++;
+            ScoreTextBlock.Text = "Очки: " + _score.ToString();
+            GameSavok.Children.Remove(GameSavok.Children.OfType<Image>().FirstOrDefault());
+            Rectangle newSavok = CreateSavokSegment(_foodPositsion);
+            _savok.Add(newSavok);
+            GameSavok.Children.Add(newSavok);
+        }
+
+        private Point CalculeteNewHeadPosition()
+        {
+            double left = Canvas.GetLeft(_savokHead) / SavokSize;
+            double top = Canvas.GetTop(_savokHead) / SavokSize;
+
+            Point headCurrentPosition = new Point(left, top);
+            Point newHeadPosition = new Point();
+
+            switch (_direction)
+            {
+                case Direction.Left:
+                    newHeadPosition = new Point(headCurrentPosition.X - 1, headCurrentPosition.Y);
+                    break;
+                case Direction.Right:
+                    newHeadPosition = new Point(headCurrentPosition.X + 1, headCurrentPosition.Y);
+                    break;
+                case Direction.Top:
+                    newHeadPosition = new Point(headCurrentPosition.X, headCurrentPosition.Y - 1);
+                    break;
+                case Direction.Bottom:
+                    newHeadPosition = new Point(headCurrentPosition.X, headCurrentPosition.Y + 1);
+                    break;
+            }
+            return newHeadPosition;
+        }
+        private void PlaceFood()
+        {
+            int maxX = (int)(GameSavok.ActualWidth / SavokSize);
+            int maxY = (int)(GameSavok.ActualWidth / SavokSize);
+
+            int foodX = randomPositionFood.Next(0, maxX);
+            int foodY = randomPositionFood.Next(0, maxY);
+
+            _foodPositsion = new Point(foodX, foodY);
+
+            Image foodImage = new Image
+            {
+                Width = SavokSize,
+                Height = SavokSize,
+                Source = new BitmapImage(new Uri("C:\\Users\\savel\\source\\repos\\testPY\\test\\test\\images\\LyN_zWcESRM.jpg"))
+            };
+
+            Canvas.SetLeft(foodImage, foodX * SavokSize);
+            Canvas.SetTop(foodImage, foodY * SavokSize);
+
+
+            GameSavok.Children.Add(foodImage);
+        }
+
+        private Rectangle CreateSavokSegment(Point position)
+        {
+            Rectangle rectangle = new Rectangle
+            {
+                Width = SavokSize,
+                Height = SavokSize,
+                Fill = _savokColor
+            };
+
+            Canvas.SetLeft(rectangle, position.X * SavokSize);
+            Canvas.SetTop(rectangle, position.Y * SavokSize);
+
+            return rectangle;
+        }
+
+        private void Window_KeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    if (_direction != Direction.Bottom)
+                    _direction = Direction.Top;
+                    break;
+                case Key.Down:
+                    if (_direction != Direction.Top)
+                        _direction = Direction.Bottom;
+                    break;
+                case Key.Left:
+                    if (_direction != Direction.Right)
+                        _direction = Direction.Left;
+                    break;
+                case Key.Right:
+                    if (_direction != Direction.Left)
+                        _direction = Direction.Right;
+                    break;
+            }
+        }
+        private void RestartButton_Click(object sender, EventArgs e)
+        {
+            _score = 0;
+            ScoreTextBlock.Text = "Очки: 0";
+            GameSavok.Children.Clear();
+            _savok.Clear();
+            RestartButton.Visibility = Visibility.Collapsed;
+            InitialGame();
+        }
+        private void StartButton_Click(object sender, EventArgs e)
+        {
+            InitialGame();
+            StartGame.Visibility = Visibility.Collapsed;
+        }
+    }
+}
+
